@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Linux boots: press the button and watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f4fb;--sf:#fff;--tx:#161a3a;--mu:#585f8e;--ln:#dde0f2;--ac:#5555ee;--term:#0d1130;--tt:#c8cffc;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0e2c;--sf:#141944;--tx:#eef0ff;--mu:#9aa2d8;--ln:#252c68;--ac:#8c8cff;--term:#060820;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0e2c;--sf:#141944;--tx:#eef0ff;--mu:#9aa2d8;--ln:#252c68;--ac:#8c8cff;--term:#060820;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 Inter,system-ui,sans-serif;transition:background .4s}
+h1,h2,h3{font-family:'Bricolage Grotesque',Inter,sans-serif;margin:0;line-height:1.1}
+code,pre,.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 20px 48px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--mu);font-size:14px}
+.tg{background:var(--sf);color:var(--tx);border:1px solid var(--ln);border-radius:99px;padding:6px 14px;cursor:pointer;font:inherit}
+.hero{text-align:center;padding:36px 0 28px}
+.hero h1{font-size:clamp(34px,6vw,64px);font-weight:800;letter-spacing:-.02em}
+.hero p{max-width:56ch;margin:14px auto 28px;color:var(--mu)}
+.pw{--g:var(--ac);position:relative;width:112px;height:112px;border-radius:50%;border:0;cursor:pointer;color:#fff;background:radial-gradient(circle at 30% 25%,color-mix(in srgb,var(--g) 70%,#fff),var(--g));box-shadow:0 10px 30px color-mix(in srgb,var(--g) 45%,transparent);transition:transform .2s,box-shadow .4s,background .4s}
+.pw:hover{transform:scale(1.06)}.pw:active{transform:scale(.95)}
+.pw svg{width:44px;height:44px}
+.pw::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:2px solid var(--g);opacity:.5;animation:ring 2.2s infinite}
+.running .pw::after{animation-duration:.9s}
+@keyframes ring{from{transform:scale(.9);opacity:.6}to{transform:scale(1.25);opacity:0}}
+.cta{display:block;margin:16px auto 0;font-weight:500}
+.bar{height:6px;max-width:420px;margin:22px auto 0;background:var(--ln);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5a524,#e8478b,#6a5cf0,#2bb3a3);transition:width .5s}
+#st{margin-top:10px;font-size:14px;color:var(--mu);min-height:22px}
+.ready .hero h1{color:#1f9d6b}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:28px;align-items:start}
+.ph{font:500 13px 'IBM Plex Mono',monospace;color:var(--mu);margin:18px 0 8px 52px}
+ol{list-style:none;margin:0;padding:0}
+.s{position:relative;padding-left:52px}
+.s::before{content:"";position:absolute;left:19px;top:42px;bottom:-2px;width:2px;background:var(--ln)}
+.s:last-child::before{display:none}
+.s::after{content:"";position:absolute;left:19px;top:42px;width:2px;height:0;background:hsl(var(--h) 75% 55%);transition:height .6s}
+.s.done::after{height:calc(100% - 40px)}
+.nd{position:absolute;left:6px;top:8px;width:28px;height:28px;border-radius:50%;border:2px solid var(--ln);background:var(--bg);display:grid;place-items:center;transition:.4s;z-index:1}
+.nd svg{width:14px;height:14px;opacity:0;stroke:#fff;transition:.3s}
+.s.done .nd{background:hsl(var(--h) 75% 50%);border-color:transparent}.s.done .nd svg{opacity:1}
+.s.act .nd{border-color:hsl(var(--h) 80% 58%);box-shadow:0 0 0 6px hsl(var(--h) 80% 58%/.22)}
+.sb{width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:12px;padding:8px 12px;margin:2px 0;color:inherit;font:inherit;cursor:pointer;transition:background .25s,border-color .25s,transform .25s}
+.sb:hover{background:var(--sf);transform:translateX(3px)}
+.s.sel .sb{background:var(--sf);border-color:hsl(var(--h) 70% 60%/.6)}
+.sb b{display:block;font:700 17px 'Bricolage Grotesque',sans-serif}
+.sb span{font-size:14px;color:var(--mu)}
+.s.wait .sb b{opacity:.75}
+button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.side{position:sticky;top:16px;display:grid;gap:16px}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:18px;padding:22px}
+.tag{display:inline-block;font:500 12px 'IBM Plex Mono',monospace;padding:3px 10px;border-radius:99px;background:hsl(var(--h) 80% 60%/.18);color:hsl(var(--h) 60% 45%)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tag{color:hsl(var(--h) 90% 75%)}}
+:root[data-theme="dark"] .tag{color:hsl(var(--h) 90% 75%)}
+.card h2{font-size:30px;margin:10px 0 8px;font-weight:800}
+.card p{margin:0 0 12px}
+.card ul{margin:0 0 14px;padding-left:20px}.card li{margin:5px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chips code{font-size:13px;background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:2px 8px}
+.know{border-left:4px solid hsl(var(--h) 75% 55%);background:var(--bg);border-radius:0 10px 10px 0;padding:10px 14px;font-size:15px}
+.fade{animation:sw .35s ease}
+.cmd{background:var(--term);color:var(--tt);border-radius:12px;margin:0 0 14px;overflow:hidden}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #ffffff1f;font-size:13px;color:#aab2ee}
+.cp{background:#ffffff1a;color:inherit;border:0;border-radius:8px;padding:3px 12px;cursor:pointer;font:inherit}
+.cp:hover{background:#ffffff33}
+.cmd pre{margin:0;padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.65}
+.cc{color:#7e87c9}
+@keyframes sw{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.term{background:var(--term);color:var(--tt);border-radius:14px;padding:14px 16px;height:210px;overflow:auto;font-size:12.5px;line-height:1.55;margin:0;white-space:pre-wrap}
+.term .t{color:#7e87c9}.term .ok{color:#52d6a0}.term .h{color:#ffc857}
+.login{margin-top:14px;border-radius:12px;padding:16px;text-align:center;color:#fff;background:linear-gradient(135deg,#2b2f8f,#7b3fbf 60%,#e8478b)}
+.login b{font:700 18px 'Bricolage Grotesque'}.login div{font:13px 'IBM Plex Mono';opacity:.9;margin-top:4px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}.side{position:static}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="top"><span class="mono">linux / boot explorer</span><button class="tg" id="th" type="button">Switch theme</button></div>
+  <section class="hero">
+    <h1 id="ht">Your PC is off.</h1>
+    <p id="hp">Press the power button and watch every step from the first electrical pulse to a ready Linux desktop. Click any step at any time to see what it does.</p>
+    <button class="pw" id="go" type="button" aria-label="Click here to start your PC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v9M6.3 6.6a8 8 0 1 0 11.4 0"/></svg></button>
+    <button class="tg cta" id="go2" type="button">Click here to start your PC</button>
+    <div class="bar"><i id="pb"></i></div>
+    <div id="st" role="status" aria-live="polite">Waiting for power</div>
+  </section>
+  <div class="grid">
+    <div><ol id="list"></ol></div>
+    <div class="side">
+      <div class="card fade" id="det"></div>
+      <pre class="term" id="term" aria-label="Boot log">Power is off. Nothing is running yet.</pre>
+    </div>
+  </div>
+</div>
+<script>
+const S=[
+{p:'Boot',h:35,t:'Power on and BIOS POST',s:'The hardware checks itself',ms:2600,
+d:'Pressing the power button has nothing to do with Linux yet. The BIOS (Basic I/O System) runs POST, the Power On Self Test, which checks that the CPU, memory and basic hardware work. If POST fails, the boot stops here.',
+pts:['IBM designed the BIOS for the first PC in 1981 to initialize hardware.','It is the same for every operating system.','After POST, the BIOS issues interrupt INT 13H to find bootable devices.'],
+f:['BIOS / UEFI','POST','INT 13H'],
+x:'Modern PCs use UEFI instead of legacy BIOS. UEFI reads an EFI System Partition and can verify signed bootloaders with Secure Boot. The idea is the same: test hardware, then hand control to a bootloader.',
+log:['BIOS: power good, starting POST','CPU: ok  RAM: memory test passed','POST: keyboard, display, storage detected','INT 13H: scanning attached devices']},
+{p:'Boot',h:20,t:'Find the boot sector',s:'The first bootable disk is loaded',ms:2200,
+d:'The BIOS looks through the attached bootable devices. The first boot sector that holds a valid boot record is copied into RAM, and the CPU jumps to that code. That code is the first stage of the boot loader.',
+pts:['The boot record usually sits in the Master Boot Record (MBR).','Boot order in the BIOS setup decides which disk is tried first.','Most Linux distributions use GRUB, GRUB2 or LILO; GRUB2 is the most common today.'],
+f:['MBR','sector 0','boot order'],
+x:'On GPT disks with UEFI there is no MBR boot code. The firmware loads a file such as grubx64.efi directly from the EFI System Partition.',
+log:['Found boot device: /dev/sda','Reading sector 0 (512 bytes)','Valid boot record found','Loading boot code into RAM, jumping to it']},
+{p:'Boot',h:340,t:'GRUB2 stage 1',s:'A 446-byte starter',ms:2200,
+d:'Stage 1 is tiny because it must fit in the first 512-byte sector together with the partition table. Only 446 bytes are left for code. It understands no filesystems, so its only job is to find and load stage 1.5.',
+pts:['The stage 1 file is called boot.img.','GRUB stands for GRand Unified Bootloader, version 2.','It was designed around the multiboot specification, so it can boot many systems.'],
+f:['boot.img','446 bytes','/boot/grub2'],
+x:'The other 66 bytes of the sector hold the partition table (64 bytes) and the 2-byte boot signature.',
+log:['GRUB loading.','Welcome to GRUB!','stage 1: locating core image','stage 1: handing control to stage 1.5']},
+{p:'Boot',h:290,t:'GRUB2 stage 1.5',s:'Filesystem drivers appear',ms:2200,
+d:'Stage 1.5 (core.img) lives in the gap between the MBR and the first partition. The first partition starts at sector 63, leaving 62 sectors, or 31,744 bytes. The core.img is 25,389 bytes, so it fits.',
+pts:['It contains drivers for EXT and other Linux filesystems, FAT and NTFS.','That lets it read stage 2 from a standard filesystem.','Stage 2 can sit on an EXT filesystem but not on a logical volume.'],
+f:['core.img','sector 63','ext / FAT / NTFS drivers'],
+x:'On modern systems with larger partition alignment, GRUB embeds core.img in a BIOS boot partition on GPT disks instead.',
+log:['core.img loaded (25389 bytes)','loading filesystem driver: ext2','locating /boot filesystem','stage 1.5: loading stage 2 modules']},
+{p:'Boot',h:255,t:'GRUB2 stage 2',s:'Menu, then the kernel is loaded',ms:2800,
+d:'Stage 2 files live in /boot/grub2, mostly as runtime modules loaded as needed. GRUB shows the boot menu with the installed kernels, a rescue option and, if configured, a recovery option. It then loads the chosen kernel into RAM.',
+pts:['Kernel files in /boot start with vmlinuz.','Keeping several kernels lets you boot an older one if a new one fails.','Configuration is in /boot/grub2/grub.cfg (older GRUB1: grub.conf).'],
+f:['/boot/grub2/grub.cfg','vmlinuz','grub2-mkconfig'],
+x:'To change the default kernel, set GRUB_DEFAULT in /etc/default/grub and run grub2-mkconfig > /boot/grub2/grub.cfg. The article’s author found grub2-set-default unreliable and used GRUB_DEFAULT=2 manually.',
+log:['GRUB menu: Linux (default), Advanced options, Rescue','Selected: Linux (default) in 3 seconds','loading vmlinuz-linux','loading initramfs-linux.img','stage 2: handing control to the kernel']},
+{p:'Boot',h:200,t:'Kernel initialization',s:'The kernel wakes up and starts systemd',ms:3000,
+d:'Kernels are stored compressed. The kernel extracts itself, starts working, detects hardware and mounts the root filesystem. It then loads systemd and gives it control. This is the end of the boot process.',
+pts:['The initial RAM disk (initramfs) provides early drivers for finding the real root disk.','At this point nothing useful runs for the user yet.','systemd replaces the old SysV init program.'],
+f:['vmlinuz','initramfs','dmesg'],
+x:'Kernel parameters from GRUB, such as quiet or root=, change how it starts. After boot, run dmesg to read the kernel’s own log.',
+log:['Decompressing Linux kernel... done, booting','Linux version 6.x started','CPU: 8 cores online','PCI: devices enumerated, drivers loaded','VFS: mounted root filesystem','Run /sbin/init as init process']},
+{p:'Startup',h:165,t:'systemd starts (PID 1)',s:'The parent of all processes',ms:2600,
+d:'systemd is responsible for bringing the host to a state where work can be done. It mounts filesystems from /etc/fstab, including swap, and reads default.target to see which state to boot into.',
+pts:['default.target is a symbolic link to the real target file.','Desktops usually use graphical.target (runlevel 5); servers use multi-user.target (runlevel 3).','emergency.target is like single-user mode.','Targets and services are both systemd units.'],
+f:['/etc/fstab','default.target','systemctl get-default'],
+x:'Table: runlevel 0 = poweroff, 1 = rescue, 3 = multi-user, 5 = graphical, 6 = reboot. Old commands like init 3 are forwarded to systemd.',
+log:['systemd 25x running in system mode','Mounting filesystems from /etc/fstab','Activating swap','Reading default.target: graphical.target','Starting units in parallel']},
+{p:'Startup',h:130,t:'sysinit.target',s:'Low-level services come up',ms:2400,
+d:'The first checkpoint. systemd cannot pass it until every unit it depends on has finished, though inside it tasks run in parallel.',
+pts:['Mounts local filesystems and sets up swap.','Starts udev for devices, sets the random seed, starts low-level services.','Sets up cryptographic services if filesystems are encrypted.'],
+f:['local-fs.target','swap.target','udevd'],
+x:'Run systemd-analyze blame after boot to see which units took the most time.',
+log:['Reached target Local File Systems','Reached target Swap','Started udev Kernel Device Manager','Started Load/Save Random Seed','Reached target System Initialization']},
+{p:'Startup',h:100,t:'basic.target',s:'Sockets, timers and paths',ms:2200,
+d:'The second checkpoint. After sysinit is satisfied, systemd starts the units that the next targets need.',
+pts:['Sets up paths to executable directories.','Opens communication sockets.','Starts timers.'],
+f:['sockets.target','timers.target','paths.target'],
+x:'Because multi-user.target depends on basic.target, you can never skip these checkpoints.',
+log:['Listening on D-Bus System Message Bus Socket','Reached target Sockets','Reached target Timer Units','Reached target Basic System']},
+{p:'Startup',h:70,t:'multi-user.target',s:'All services, text login',ms:2600,
+d:'Network, logging, cron, SSH and other system services start. If this is the default target, you now see a text login on the console.',
+pts:['Everything runs except the graphical interface.','It must be reached before the graphical target can be.','It is the usual default on servers.'],
+f:['sshd','NetworkManager','journalctl -b'],
+x:'Use systemctl status to inspect a service, and journalctl -b to read this boot’s log.',
+log:['Started Network Manager','Started OpenSSH server daemon','Started Periodic Command Scheduler','Reached target Multi-User System']},
+{p:'Startup',h:150,t:'graphical.target',s:'The login screen appears',ms:2800,
+d:'The display manager starts and shows a graphical login. When this target is reached, startup is complete and the system is ready.',
+pts:['graphical.target equals multi-user plus a GUI.','The login screen depends on your display manager (GDM, SDDM and others).','From here you log in and work.'],
+f:['display-manager.service','graphical.target','systemctl isolate'],
+x:'Switch targets at runtime with systemctl isolate multi-user.target, or set a new default with systemctl set-default.',
+log:['Started Display Manager','Reached target Graphical Interface','Startup finished in 8.2s','Linux is ready. Login: _']}
+];
+const C=[
+`# Firmware and BIOS details
+sudo dmidecode -t bios
+# Booted with UEFI or legacy BIOS?
+[ -d /sys/firmware/efi ] && echo UEFI || echo BIOS
+# Hardware found at power on
+lscpu
+free -h
+lsblk`,
+`# Disks, partitions and filesystems
+lsblk -f
+sudo fdisk -l
+# UEFI boot order and entries
+efibootmgr -v
+# Peek at the first 512 bytes (the MBR)
+sudo dd if=/dev/sda bs=512 count=1 2>/dev/null | xxd | head`,
+`# What is in the boot sector?
+sudo file -s /dev/sda
+# GRUB version (grub-install on Debian/Ubuntu)
+grub2-install --version
+# Reinstall GRUB if the boot record is broken
+sudo grub2-install /dev/sda`,
+`# GRUB modules and core image (/boot/grub on Debian/Ubuntu)
+ls -l /boot/grub2/i386-pc | head
+# Which filesystem holds /boot?
+findmnt /boot
+# Where does the first partition start?
+sudo fdisk -l /dev/sda`,
+`# Installed kernels
+ls -l /boot/vmlinuz*
+# GRUB settings and saved default entry
+cat /etc/default/grub
+sudo grub2-editenv list
+# Rebuild the GRUB menu (update-grub on Debian/Ubuntu)
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg`,
+`# Running kernel and the options GRUB passed to it
+uname -r
+cat /proc/cmdline
+# Kernel messages, all and only problems
+dmesg | less
+dmesg --level=err,warn
+# Look inside the initramfs (lsinitramfs on Debian/Ubuntu)
+lsinitrd /boot/initramfs-$(uname -r).img | head`,
+`# Check PID 1
+ps -p 1 -f
+# Check default target
+systemctl get-default
+# Filesystems systemd mounted from /etc/fstab
+cat /etc/fstab
+findmnt
+# Change the default target
+sudo systemctl set-default multi-user.target`,
+`# Check target dependencies
+systemctl list-dependencies sysinit.target
+# Device manager and any failed units
+systemctl status systemd-udevd
+systemctl --failed`,
+`# Check target dependencies
+systemctl list-dependencies basic.target
+# Sockets and timers started here
+systemctl list-units --type=socket
+systemctl list-timers`,
+`# Check target dependencies
+systemctl list-dependencies multi-user.target
+# Running services
+systemctl list-units --type=service --state=running
+systemctl status sshd`,
+`# Check target dependencies
+systemctl list-dependencies graphical.target
+# Display manager status
+systemctl status display-manager
+# Check boot time
+systemd-analyze
+systemd-analyze blame
+systemd-analyze critical-chain
+# Check boot logs
+journalctl -b
+journalctl -b -p err`];
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt=s=>esc(s).replace(/^(#.*)$/gm,'<span class="cc">$1</span>');
+const $=id=>document.getElementById(id),app=$('app');
+const tick='<svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+let cur=-1,sel=0,run=false,ready=false,tk=0;
+const list=$('list');let last='';
+S.forEach((s,i)=>{if(s.p!==last){last=s.p;const l=document.createElement('li');l.className='ph';l.textContent=s.p==='Boot'?'Boot: power on until systemd launches':'Startup: systemd makes the system usable';list.appendChild(l)}
+const li=document.createElement('li');li.className='s wait';li.style.setProperty('--h',s.h);li.id='s'+i;
+li.innerHTML='<div class="nd">'+tick+'</div><button class="sb" type="button"><b>'+s.t+'</b><span>'+s.s+'</span></button>';
+li.querySelector('button').onclick=()=>{if(run)start(i);else show(i,true)};list.appendChild(li)});
+function show(i,user){sel=i;const s=S[i];document.querySelectorAll('.s').forEach((e,j)=>e.classList.toggle('sel',e.id==='s'+i));
+const d=$('det');d.style.setProperty('--h',s.h);d.classList.remove('fade');void d.offsetWidth;d.classList.add('fade');
+d.innerHTML='<span class="tag">'+s.p+' phase · step '+(i+1)+' of '+S.length+'</span><h2>'+s.t+'</h2><p>'+s.d+'</p><ul>'+s.pts.map(x=>'<li>'+x+'</li>').join('')+'</ul><div class="chips">'+s.f.map(x=>'<code>'+x+'</code>').join('')+'</div><div class="cmd"><div class="ch"><span>Commands to check and troubleshoot</span><button class="cp" type="button">Copy</button></div><pre><code>'+fmt(C[i])+'</code></pre></div><div class="know"><b>Good to know.</b> '+s.x+'</div>'+(i===S.length-1&&ready?'<div class="login"><b>Linux is ready to go</b><div>login: user@pc  password: ********</div></div>':'');
+const cb=d.querySelector('.cp');cb.onclick=()=>{try{navigator.clipboard.writeText(C[i]).then(()=>{cb.textContent='Copied';setTimeout(()=>cb.textContent='Copy',1500)},()=>{})}catch(e){}};if(user&&innerWidth<=860)d.scrollIntoView({behavior:'smooth',block:'start'})}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function log(txt,cls,t0){const T=$('term');const ts=((performance.now()-t0)/1000).toFixed(6).padStart(10);T.insertAdjacentHTML('beforeend','<span class="t">['+ts+']</span> <span class="'+(cls||'')+'">'+txt+'</span>\n');T.scrollTop=T.scrollHeight}
+function reset(){cur=-1;ready=false;document.querySelectorAll('.s').forEach(e=>e.classList.remove('done','act','wait'));document.querySelectorAll('.s').forEach(e=>e.classList.add('wait'));$('pb').style.width='0';$('term').textContent='Power is off. Nothing is running yet.';app.classList.remove('ready','running');$('ht').textContent='Your PC is off.';$('go2').textContent='Click here to start your PC';$('st').textContent='Waiting for power';show(0)}
+async function start(from){const resume=typeof from==='number';if(run&&!resume){tk++;run=false;reset();$('st').textContent='Powered off. Press the power button to start again.';return}from=resume?from:0;if(!resume&&(ready||cur>=0))reset();run=true;const my=++tk;ready=false;app.classList.remove('ready');app.classList.add('running');$('go2').textContent='Click here to power off';$('ht').textContent='Booting Linux';const t0=performance.now();if(resume){log('--- restarting from: '+S[from].t+' ---','h',t0)}else{$('term').textContent=''}document.querySelectorAll('.s').forEach((e,j)=>{e.classList.remove('act','done','wait');e.classList.add(j<from?'done':'wait')});$('pb').style.width=(from/S.length*100)+'%';
+for(let i=from;i<S.length;i++){if(my!==tk)return;cur=i;const el=$('s'+i);el.classList.remove('wait');el.classList.add('act');show(i);$('st').textContent='Step '+(i+1)+' of '+S.length+': '+S[i].t+' (click any step to restart from it)';log(S[i].t.toUpperCase().replace(/\./g,''),'h',t0);
+const L=S[i].log,gap=S[i].ms*2.2/L.length;for(const l of L){await sleep(gap);if(my!==tk)return;log(l,l.indexOf('ready')>-1||l.indexOf('Reached')===0?'ok':'',t0)}
+el.classList.remove('act');el.classList.add('done');$('pb').style.width=((i+1)/S.length*100)+'%';await sleep(1800)}
+if(my!==tk)return;ready=true;run=false;app.classList.remove('running');app.classList.add('ready');$('ht').textContent='Linux is ready to go.';$('st').textContent='Startup finished. Click any step to review it, or boot again.';$('go2').textContent='Restart the boot';show(S.length-1)}
+$('go').onclick=()=>start();$('go2').onclick=()=>start();
+$('th').onclick=()=>{const r=document.documentElement,dk=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dk?'light':'dark'};
+reset();
+</script>
+</body>
+</html>
