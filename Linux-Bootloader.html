@@ -10,6 +10,7 @@
 :root{--bg:#f3f4fb;--sf:#fff;--tx:#161a3a;--mu:#585f8e;--ln:#dde0f2;--ac:#5555ee;--term:#0d1130;--tt:#c8cffc;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0e2c;--sf:#141944;--tx:#eef0ff;--mu:#9aa2d8;--ln:#252c68;--ac:#8c8cff;--term:#060820;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0b0e2c;--sf:#141944;--tx:#eef0ff;--mu:#9aa2d8;--ln:#252c68;--ac:#8c8cff;--term:#060820;color-scheme:dark}
+:root[data-os="windows"]{--ac:#0078d4}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 Inter,system-ui,sans-serif;transition:background .4s}
@@ -17,6 +18,7 @@ h1,h2,h3{font-family:'Bricolage Grotesque',Inter,sans-serif;margin:0;line-height
 code,pre,.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
 .wrap{max-width:1120px;margin:0 auto;padding:20px 20px 48px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--mu);font-size:14px}
+.top-actions{display:flex;align-items:center;gap:8px}
 .tg{background:var(--sf);color:var(--tx);border:1px solid var(--ln);border-radius:99px;padding:6px 14px;cursor:pointer;font:inherit}
 .hero{text-align:center;padding:36px 0 28px}
 .hero h1{font-size:clamp(34px,6vw,64px);font-weight:800;letter-spacing:-.02em}
@@ -67,7 +69,7 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 .ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #ffffff1f;font-size:13px;color:#aab2ee}
 .cp{background:#ffffff1a;color:inherit;border:0;border-radius:8px;padding:3px 12px;cursor:pointer;font:inherit}
 .cp:hover{background:#ffffff33}
-.cmd pre{margin:0;padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.65}
+.cmd pre{min-width:0;margin:0;padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.65}
 .cc{color:#7e87c9}
 @keyframes sw{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .term{background:var(--term);color:var(--tt);border-radius:14px;padding:14px 16px;height:210px;overflow:auto;font-size:12.5px;line-height:1.55;margin:0;white-space:pre-wrap}
@@ -77,13 +79,16 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 @media (max-width:860px){
   .wrap{padding:12px 12px calc(32px + env(safe-area-inset-bottom,0px))}
   .top{font-size:12px}
+  .top-actions{gap:6px}
+  .top-actions .tg{padding-inline:10px;font-size:12px}
   .tg{min-height:44px}
   .hero{padding:24px 0 20px}
   .hero h1{font-size:clamp(32px,11vw,48px)}
   .hero p{margin:12px auto 20px;font-size:15px}
   .pw{width:88px;height:88px}
   .pw svg{width:36px;height:36px}
-  .grid{grid-template-columns:1fr;gap:18px}
+  .grid{grid-template-columns:minmax(0,1fr);gap:18px}
+  .grid>div,.side,.card,.cmd,.term{min-width:0}
   .side{position:static;gap:12px}
   .ph{margin:14px 0 6px 44px}
   .s{padding-left:44px}
@@ -105,7 +110,8 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 }
 @media (max-width:380px){
   .wrap{padding-inline:8px}
-  .top .mono{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top .mono{max-width:94px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top-actions .tg{padding-inline:7px;font-size:11px}
   .hero h1{font-size:32px}
   .pw{width:80px;height:80px}
   .card{padding:14px}
@@ -115,7 +121,7 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 </head>
 <body>
 <div class="wrap" id="app">
-  <div class="top"><span class="mono">linux / boot explorer</span><button class="tg" id="th" type="button">Switch theme</button></div>
+  <div class="top"><span class="mono" id="brand">linux / boot explorer</span><div class="top-actions"><button class="tg" id="os" type="button">Switch to Windows</button><button class="tg" id="th" type="button">Switch theme</button></div></div>
   <section class="hero">
     <h1 id="ht">Your PC is off.</h1>
     <p id="hp">Press the power button and watch every step from the first electrical pulse to a ready Linux desktop. Click any step at any time to see what it does.</p>
@@ -279,30 +285,134 @@ systemd-analyze critical-chain
 # Check boot logs
 journalctl -b
 journalctl -b -p err`];
+const WINDOWS=[
+{p:'Boot',h:210,t:'Power on and UEFI POST',s:'Firmware initializes and checks hardware',ms:800,
+d:'Pressing the power button starts the power supply and releases the CPU from reset. UEFI firmware initializes memory and devices, then runs its power-on self-test. Most current Windows PCs boot through UEFI; some older installations use legacy BIOS.',
+pts:['UEFI performs the hardware setup before Windows starts.','The firmware can verify signed boot components when Secure Boot is enabled.','At this point the operating system has not loaded yet.'],
+f:['UEFI','POST','Secure Boot'],
+x:'UEFI settings and boot order are stored by the firmware. Secure Boot verifies signatures; it does not encrypt the disk.',
+log:['Power good: firmware starting','UEFI: initializing CPU and memory','POST: hardware checks passed','Secure Boot: checking boot policy']},
+{p:'Boot',h:200,t:'UEFI finds Windows Boot Manager',s:'Firmware launches the EFI boot program',ms:700,
+d:'The firmware checks its boot entries and selects Windows Boot Manager, normally the signed file bootmgfw.efi on the EFI System Partition. The firmware loads that program into memory and transfers control to it.',
+pts:['The EFI System Partition is a small FAT-formatted system partition.','The usual path is \\EFI\\Microsoft\\Boot\\bootmgfw.efi.','On legacy BIOS systems, Windows uses a different boot path.'],
+f:['EFI System Partition','bootmgfw.efi','BootOrder'],
+x:'The Windows Boot Manager entry is registered in the UEFI firmware. The exact disk and partition can vary between computers.',
+log:['UEFI: checking boot entries','Selected: Windows Boot Manager','Loading \\EFI\\Microsoft\\Boot\\bootmgfw.efi','Starting Windows Boot Manager']},
+{p:'Boot',h:220,t:'Boot Manager reads BCD',s:'The Windows boot configuration is loaded',ms:800,
+d:'Windows Boot Manager reads the Boot Configuration Data (BCD) store. It uses those settings to choose a Windows installation and its OS loader, and can also offer recovery or other boot options.',
+pts:['BCD replaces the older boot.ini configuration.','The store can include boot entries, recovery settings and boot options.','For a typical UEFI installation, the store is on the EFI System Partition.'],
+f:['BCD store','Windows Boot Manager','winload.efi'],
+x:'The Boot Configuration Data store is not the Windows registry; it is a separate store used by the boot environment.',
+log:['Opening BCD store','Reading default Windows boot entry','Selected Windows installation','Preparing Windows OS Loader']},
+{p:'Boot',h:230,t:'Windows OS Loader (winload.efi)',s:'Kernel, registry and boot drivers are prepared',ms:850,
+d:'The Windows OS Loader loads the Windows kernel (ntoskrnl.exe), the hardware abstraction layer, the SYSTEM registry hive and drivers marked to start during boot. It then hands control to the kernel.',
+pts:['winload.efi is the UEFI loader; legacy BIOS uses winload.exe.','Boot-start drivers provide early access to storage and other devices.','The loader passes system settings and hardware information to the kernel.'],
+f:['winload.efi','ntoskrnl.exe','SYSTEM hive'],
+x:'The loader is part of Windows Boot Manager’s normal startup path. Recovery and resume can use related Windows boot components.',
+log:['Windows OS Loader started','Loading ntoskrnl.exe and HAL','Loading boot-start drivers','Handing control to the Windows kernel']},
+{p:'Boot',h:245,t:'Windows kernel initialization',s:'Core operating-system components start',ms:900,
+d:'The kernel initializes memory management, scheduling, device drivers and other core subsystems. It brings the system volume online and starts the Session Manager, smss.exe, to continue user-mode startup.',
+pts:['The kernel coordinates hardware, memory and running processes.','Boot-start drivers are initialized as part of early system startup.','The kernel starts the first user-mode system process, smss.exe.'],
+f:['ntoskrnl.exe','HAL','smss.exe'],
+x:'Windows startup is a sequence of handoffs between firmware, boot applications, the kernel and user-mode system processes.',
+log:['Windows kernel running','Initializing memory manager and scheduler','Starting boot-start drivers','Starting Session Manager (smss.exe)']},
+{p:'Startup',h:260,t:'Session Manager starts',s:'Windows creates system sessions and processes',ms:800,
+d:'The Session Manager (smss.exe) creates system sessions and launches essential processes. These include wininit.exe for system initialization and services, csrss.exe for critical Windows subsystem work, and winlogon.exe for interactive sign-in.',
+pts:['smss.exe is the first user-mode process started by the kernel.','wininit.exe starts core services and the Service Control Manager.','winlogon.exe manages the secure sign-in sequence.'],
+f:['smss.exe','wininit.exe','csrss.exe','winlogon.exe'],
+x:'These are Windows system processes. Ending them can make Windows unstable or force a shutdown.',
+log:['Session Manager started','Creating system session','Starting wininit.exe and csrss.exe','Starting winlogon.exe']},
+{p:'Startup',h:280,t:'Windows services start',s:'Drivers and background services initialize',ms:850,
+d:'System initialization starts core security processes and the Service Control Manager (services.exe). The Service Control Manager then starts automatic services and coordinates their dependencies while device drivers and networking become available.',
+pts:['services.exe is the Service Control Manager process.','Services may start in parallel when their dependencies allow it.','The exact services depend on the Windows edition and installed software.'],
+f:['services.exe','Service Control Manager','Automatic services'],
+x:'Windows logs service and driver startup events in the System event log.',
+log:['Starting Local Security Authority (lsass.exe)','Service Control Manager started','Starting automatic services','Core services and devices initialized']},
+{p:'Startup',h:300,t:'Windows sign-in appears',s:'Winlogon launches the logon interface',ms:650,
+d:'Winlogon coordinates the interactive sign-in experience and starts LogonUI, which displays the sign-in screen. After the user authenticates, Windows creates that user’s session and launches the configured shell.',
+pts:['The sign-in screen is available before a user desktop is opened.','Authentication is handled by Windows security components.','This simulation does not sign in to a real account.'],
+f:['winlogon.exe','LogonUI.exe','Credential providers'],
+x:'On managed systems, policy and credential providers can change the options shown on the sign-in screen.',
+log:['Winlogon: preparing interactive sign-in','Starting LogonUI','Sign-in screen is ready','Waiting for user sign-in']},
+{p:'Startup',h:205,t:'User session and desktop launch',s:'Explorer displays the Windows desktop',ms:650,
+d:'After sign-in, userinit.exe completes user-session initialization and starts the configured shell. On a standard Windows desktop that shell is explorer.exe, which draws the desktop, taskbar and Start menu.',
+pts:['The user profile and session settings are loaded after authentication.','Explorer is the standard Windows shell, but it can be replaced.','The desktop is ready for the user to work.'],
+f:['userinit.exe','explorer.exe','User session'],
+x:'The boot flow ends at the interactive desktop; the actual sign-in step depends on the user and device configuration.',
+log:['User session initialized','Starting Windows shell: explorer.exe','Desktop and taskbar loaded','Windows is ready. Desktop: _']}
+];
+const WINDOWS_COMMANDS=[
+`# Firmware type and computer model
+Get-ComputerInfo -Property BiosFirmwareType
+Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer, Model
+# Secure Boot state (UEFI systems)
+Confirm-SecureBootUEFI`,
+`# UEFI firmware boot entries
+bcdedit /enum firmware
+# Windows Boot Manager entry
+bcdedit /enum '{bootmgr}'`,
+`# Windows Boot Manager configuration
+bcdedit /enum '{bootmgr}'
+# Current Windows loader entry
+bcdedit /enum '{current}'`,
+`# Current Windows boot entry and options
+bcdedit /enum '{current}'
+# Boot-related Windows system events
+Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Boot'} -MaxEvents 10`,
+`# Kernel and Windows version
+Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, LastBootUpTime
+# Kernel boot events
+Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Boot'} -MaxEvents 10`,
+`# Inspect core Windows startup processes
+Get-Process smss, wininit, csrss, winlogon -ErrorAction SilentlyContinue |
+  Select-Object Name, Id`,
+`# Review automatically started services
+Get-Service |
+  Where-Object StartType -eq 'Automatic' |
+  Sort-Object Status, Name |
+  Select-Object -First 20 Name, Status, StartType`,
+`# Check sign-in processes
+Get-Process winlogon, LogonUI -ErrorAction SilentlyContinue |
+  Select-Object Name, Id`,
+`# Check the Windows shell and user session
+Get-Process explorer, userinit -ErrorAction SilentlyContinue |
+  Select-Object Name, Id
+# Recent interactive sign-in events
+Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4624} -MaxEvents 5`
+];
+const SYSTEMS={
+linux:{name:'Linux',brand:'linux / boot explorer',intro:'Press the power button and watch every step from the first electrical pulse to a ready Linux desktop. Click any step at any time to see what it does.',steps:S,commands:C},
+windows:{name:'Windows',brand:'windows / boot explorer',intro:'Press the power button and follow Windows from UEFI firmware through the kernel, services, sign-in and desktop. Click any step to explore what happens.',steps:WINDOWS,commands:WINDOWS_COMMANDS}
+};
+let platform='linux';
+const system=()=>SYSTEMS[platform];
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt=s=>esc(s).replace(/^(#.*)$/gm,'<span class="cc">$1</span>');
 const $=id=>document.getElementById(id),app=$('app');
 const tick='<svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
 let cur=-1,sel=0,run=false,ready=false,tk=0;
-const list=$('list');let last='';
-S.forEach((s,i)=>{if(s.p!==last){last=s.p;const l=document.createElement('li');l.className='ph';l.textContent=s.p==='Boot'?'Boot: power on until systemd launches':'Startup: systemd makes the system usable';list.appendChild(l)}
+const list=$('list'),steps=()=>system().steps,commands=()=>system().commands;
+function renderSteps(){list.replaceChildren();let last='';
+steps().forEach((s,i)=>{if(s.p!==last){last=s.p;const l=document.createElement('li');l.className='ph';l.textContent=s.p==='Boot'?(platform==='windows'?'Boot: firmware through kernel handoff':'Boot: power on until systemd launches'):(platform==='windows'?'Startup: services, sign-in and desktop':'Startup: systemd makes the system usable');list.appendChild(l)}
 const li=document.createElement('li');li.className='s wait';li.style.setProperty('--h',s.h);li.id='s'+i;
 li.innerHTML='<div class="nd">'+tick+'</div><button class="sb" type="button"><b>'+s.t+'</b><span>'+s.s+'</span></button>';
-li.querySelector('button').onclick=()=>{if(run)start(i);else show(i,true)};list.appendChild(li)});
-function show(i,user){sel=i;const s=S[i];document.querySelectorAll('.s').forEach((e,j)=>e.classList.toggle('sel',e.id==='s'+i));
+li.querySelector('button').onclick=()=>{if(run)start(i);else show(i,true)};list.appendChild(li)})}
+function show(i,user){const activeSteps=steps(),activeCommands=commands(),s=activeSteps[i];sel=i;document.querySelectorAll('.s').forEach((e,j)=>e.classList.toggle('sel',e.id==='s'+i));
 const d=$('det');d.style.setProperty('--h',s.h);d.classList.remove('fade');void d.offsetWidth;d.classList.add('fade');
-d.innerHTML='<span class="tag">'+s.p+' phase · step '+(i+1)+' of '+S.length+'</span><h2>'+s.t+'</h2><p>'+s.d+'</p><ul>'+s.pts.map(x=>'<li>'+x+'</li>').join('')+'</ul><div class="chips">'+s.f.map(x=>'<code>'+x+'</code>').join('')+'</div><div class="cmd"><div class="ch"><span>Commands to check and troubleshoot</span><button class="cp" type="button">Copy</button></div><pre><code>'+fmt(C[i])+'</code></pre></div><div class="know"><b>Good to know.</b> '+s.x+'</div>'+(i===S.length-1&&ready?'<div class="login"><b>Linux is ready to go</b><div>login: user@pc  password: ********</div></div>':'');
-const cb=d.querySelector('.cp');cb.onclick=()=>{try{navigator.clipboard.writeText(C[i]).then(()=>{cb.textContent='Copied';setTimeout(()=>cb.textContent='Copy',1500)},()=>{})}catch(e){}};if(user&&innerWidth<=860)d.scrollIntoView({behavior:'smooth',block:'start'})}
+d.innerHTML='<span class="tag">'+s.p+' phase · step '+(i+1)+' of '+activeSteps.length+'</span><h2>'+s.t+'</h2><p>'+s.d+'</p><ul>'+s.pts.map(x=>'<li>'+x+'</li>').join('')+'</ul><div class="chips">'+s.f.map(x=>'<code>'+x+'</code>').join('')+'</div><div class="cmd"><div class="ch"><span>Commands to inspect this step</span><button class="cp" type="button">Copy</button></div><pre><code>'+fmt(activeCommands[i])+'</code></pre></div><div class="know"><b>Good to know.</b> '+s.x+'</div>'+(i===activeSteps.length-1&&ready?'<div class="login"><b>'+system().name+' is ready to go</b><div>'+(platform==='windows'?'Desktop loaded':'login: user@pc  password: ********')+'</div></div>':'');
+const cb=d.querySelector('.cp');cb.onclick=()=>{try{navigator.clipboard.writeText(activeCommands[i]).then(()=>{cb.textContent='Copied';setTimeout(()=>cb.textContent='Copy',1500)},()=>{})}catch(e){}};if(user&&innerWidth<=860)d.scrollIntoView({behavior:'smooth',block:'start'})}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function log(txt,cls,t0){const T=$('term');const ts=((performance.now()-t0)/1000).toFixed(6).padStart(10);T.insertAdjacentHTML('beforeend','<span class="t">['+ts+']</span> <span class="'+(cls||'')+'">'+txt+'</span>\n');T.scrollTop=T.scrollHeight}
-function reset(){cur=-1;ready=false;document.querySelectorAll('.s').forEach(e=>e.classList.remove('done','act','wait'));document.querySelectorAll('.s').forEach(e=>e.classList.add('wait'));$('pb').style.width='0';$('term').textContent='Power is off. Nothing is running yet.';app.classList.remove('ready','running');$('ht').textContent='Your PC is off.';$('go2').textContent='Click here to start your PC';$('st').textContent='Waiting for power';show(0)}
-async function start(from){const resume=typeof from==='number';if(run&&!resume){tk++;run=false;reset();$('st').textContent='Powered off. Press the power button to start again.';return}from=resume?from:0;if(!resume&&(ready||cur>=0))reset();run=true;const my=++tk;ready=false;app.classList.remove('ready');app.classList.add('running');$('go2').textContent='Click here to power off';$('ht').textContent='Booting Linux';const t0=performance.now();if(resume){log('--- restarting from: '+S[from].t+' ---','h',t0)}else{$('term').textContent=''}document.querySelectorAll('.s').forEach((e,j)=>{e.classList.remove('act','done','wait');e.classList.add(j<from?'done':'wait')});$('pb').style.width=(from/S.length*100)+'%';
-for(let i=from;i<S.length;i++){if(my!==tk)return;cur=i;const el=$('s'+i);el.classList.remove('wait');el.classList.add('act');show(i);$('st').textContent='Step '+(i+1)+' of '+S.length+': '+S[i].t+' (click any step to restart from it)';log(S[i].t.toUpperCase().replace(/\./g,''),'h',t0);
-const L=S[i].log,gap=S[i].ms*2.2/L.length;for(const l of L){await sleep(gap);if(my!==tk)return;log(l,l.indexOf('ready')>-1||l.indexOf('Reached')===0?'ok':'',t0)}
-el.classList.remove('act');el.classList.add('done');$('pb').style.width=((i+1)/S.length*100)+'%';await sleep(1800)}
-if(my!==tk)return;ready=true;run=false;app.classList.remove('running');app.classList.add('ready');$('ht').textContent='Linux is ready to go.';$('st').textContent='Startup finished. Click any step to review it, or boot again.';$('go2').textContent='Restart the boot';show(S.length-1)}
+function reset(){cur=-1;run=false;ready=false;document.querySelectorAll('.s').forEach(e=>e.classList.remove('done','act','wait'));document.querySelectorAll('.s').forEach(e=>e.classList.add('wait'));$('pb').style.width='0';$('term').textContent='Power is off. Nothing is running yet.';app.classList.remove('ready','running');$('ht').textContent='Your PC is off.';$('hp').textContent=system().intro;$('brand').textContent=system().brand;$('go2').textContent='Click here to start your PC';$('st').textContent='Waiting for power';document.title='How '+system().name+' boots: press the button and watch';show(0)}
+async function start(from){const activeSteps=steps(),resume=typeof from==='number';if(run&&!resume){tk++;run=false;reset();$('st').textContent='Powered off. Press the power button to start again.';return}from=resume?from:0;if(!resume&&(ready||cur>=0))reset();run=true;const my=++tk;ready=false;app.classList.remove('ready');app.classList.add('running');$('go2').textContent='Click here to power off';$('ht').textContent='Booting '+system().name;const t0=performance.now();if(resume){log('--- restarting from: '+activeSteps[from].t+' ---','h',t0)}else{$('term').textContent=''}document.querySelectorAll('.s').forEach((e,j)=>{e.classList.remove('act','done','wait');e.classList.add(j<from?'done':'wait')});$('pb').style.width=(from/activeSteps.length*100)+'%';
+for(let i=from;i<activeSteps.length;i++){if(my!==tk)return;cur=i;const el=$('s'+i);el.classList.remove('wait');el.classList.add('act');show(i);$('st').textContent='Step '+(i+1)+' of '+activeSteps.length+': '+activeSteps[i].t+' (click any step to restart from it)';log(activeSteps[i].t.toUpperCase().replace(/\./g,''),'h',t0);
+const L=activeSteps[i].log,gap=activeSteps[i].ms*2.2/L.length;for(const l of L){await sleep(gap);if(my!==tk)return;const lower=l.toLowerCase();log(l,lower.includes('ready')||lower.startsWith('reached')?'ok':'',t0)}
+el.classList.remove('act');el.classList.add('done');$('pb').style.width=((i+1)/activeSteps.length*100)+'%';await sleep(1800)}
+if(my!==tk)return;ready=true;run=false;app.classList.remove('running');app.classList.add('ready');$('ht').textContent=system().name+' is ready to go.';$('st').textContent='Startup finished. Click any step to review it, or boot again.';$('go2').textContent='Restart the boot';show(activeSteps.length-1)}
 $('go').onclick=()=>start();$('go2').onclick=()=>start();
+$('os').onclick=()=>{if(run){tk++;run=false}platform=platform==='linux'?'windows':'linux';document.documentElement.dataset.os=platform;$('os').textContent='Switch to '+(platform==='linux'?'Windows':'Linux');renderSteps();reset()};
 $('th').onclick=()=>{const r=document.documentElement,dk=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dk?'light':'dark'};
+renderSteps();
 reset();
 </script>
 </body>

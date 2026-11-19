@@ -1,8 +1,8 @@
 # Linux Bootloader Startup
 
-An interactive visualization of the Linux boot and startup process, from firmware and POST through GRUB, the kernel, `systemd`, and the graphical login screen.
+An interactive visualization of the Linux and Windows boot and startup processes, from firmware initialization through the kernel and into the desktop.
 
-Open `Linux-Bootloader.html` in a browser to use the demonstration.
+Open `Linux-Bootloader.html` in a browser to use the demonstration. Use **Switch to Windows** beside the theme button to change between boot simulations.
 
 ## Deploy to Vercel
 
