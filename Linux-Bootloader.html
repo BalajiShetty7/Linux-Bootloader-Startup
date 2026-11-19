@@ -74,7 +74,42 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 .term .t{color:#7e87c9}.term .ok{color:#52d6a0}.term .h{color:#ffc857}
 .login{margin-top:14px;border-radius:12px;padding:16px;text-align:center;color:#fff;background:linear-gradient(135deg,#2b2f8f,#7b3fbf 60%,#e8478b)}
 .login b{font:700 18px 'Bricolage Grotesque'}.login div{font:13px 'IBM Plex Mono';opacity:.9;margin-top:4px}
-@media (max-width:860px){.grid{grid-template-columns:1fr}.side{position:static}}
+@media (max-width:860px){
+  .wrap{padding:12px 12px calc(32px + env(safe-area-inset-bottom,0px))}
+  .top{font-size:12px}
+  .tg{min-height:44px}
+  .hero{padding:24px 0 20px}
+  .hero h1{font-size:clamp(32px,11vw,48px)}
+  .hero p{margin:12px auto 20px;font-size:15px}
+  .pw{width:88px;height:88px}
+  .pw svg{width:36px;height:36px}
+  .grid{grid-template-columns:1fr;gap:18px}
+  .side{position:static;gap:12px}
+  .ph{margin:14px 0 6px 44px}
+  .s{padding-left:44px}
+  .s::before,.s::after{left:15px}
+  .nd{left:2px}
+  .sb{min-height:58px;padding:8px 10px}
+  .sb b{font-size:16px}
+  .sb span{font-size:13px}
+  .card{border-radius:14px;padding:16px}
+  .card h2{font-size:24px}
+  .card p,.card li{font-size:15px}
+  .card ul{padding-left:18px}
+  .ch{font-size:12px}
+  .cp{min-width:64px;min-height:44px}
+  .cmd pre{font-size:12px}
+  .know{font-size:14px}
+  .term{height:160px;font-size:12px}
+  #st{font-size:13px}
+}
+@media (max-width:380px){
+  .wrap{padding-inline:8px}
+  .top .mono{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hero h1{font-size:32px}
+  .pw{width:80px;height:80px}
+  .card{padding:14px}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
